@@ -158,10 +158,12 @@ jobs:
             cd /opt/smart/backend
             sed -i "s|^SPRING_DATASOURCE_URL=.*|SPRING_DATASOURCE_URL=jdbc:mysql://${{ secrets.SERVER_HOST_APP }}:3306/PaiSmart?useSSL=false\&serverTimezone=Asia/Shanghai\&allowPublicKeyRetrieval=true|" .env
             sed -i "s|^SPRING_DATA_REDIS_HOST=.*|SPRING_DATA_REDIS_HOST=${{ secrets.SERVER_HOST_APP }}|" .env
+            sed -i "s|^SPRING_DATA_REDIS_PASSWORD=.*|SPRING_DATA_REDIS_PASSWORD=PaiSmart2025|" .env
             sed -i "s|^MINIO_ENDPOINT=.*|MINIO_ENDPOINT=http://${{ secrets.SERVER_HOST_APP }}:19000|" .env
             sed -i "s|^MINIO_PUBLIC_URL=.*|MINIO_PUBLIC_URL=http://${{ secrets.SERVER_HOST_APP }}:19000|" .env
             sed -i "s|^ELASTICSEARCH_HOST=.*|ELASTICSEARCH_HOST=${{ secrets.SERVER_HOST_INFRA }}|" .env
             sed -i "s|^ELASTICSEARCH_SCHEME=.*|ELASTICSEARCH_SCHEME=http|" .env
+            sed -i "s|^ELASTICSEARCH_INSECURE_TRUST_ALL_CERTIFICATES=.*|ELASTICSEARCH_INSECURE_TRUST_ALL_CERTIFICATES=false|" .env
             sed -i "s|^ELASTICSEARCH_PASSWORD=.*|ELASTICSEARCH_PASSWORD=${{ secrets.ELASTICSEARCH_PASSWORD }}|" .env
             sed -i "s|^SPRING_KAFKA_BOOTSTRAP_SERVERS=.*|SPRING_KAFKA_BOOTSTRAP_SERVERS=${{ secrets.SERVER_HOST_INFRA }}:9092|" .env
             sed -i "s|^DEEPSEEK_API_KEY=.*|DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}|" .env
