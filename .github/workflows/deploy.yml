@@ -67,7 +67,7 @@ jobs:
             chmod +x launch.sh
             ./launch.sh restart 2>/dev/null || (
               mkdir -p /opt/smart/logs
-              export JAVA_HOME=/usr/lib/jvm/java-17
+              export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
               export SPRING_PROFILES_ACTIVE=prod
               nohup $JAVA_HOME/bin/java -server -Xms512m -Xmx512m -jar app.jar > /opt/smart/logs/backend.log 2>&1 &
             )
