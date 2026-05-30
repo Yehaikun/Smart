@@ -115,6 +115,20 @@ jobs:
             echo "Database ready"
 
       # ============ ssh2 — App (Backend + Nginx + Frontend) ============
+      - name: Cleanup Old Processes
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST_ENTRY }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            # 杀掉所有遗留的 java、scp、tar 进程，防止干扰新部署
+            kill -9 $(lsof -ti:8081 2>/dev/null) 2>/dev/null || true
+            pkill -9 -f 'scp -t' 2>/dev/null || true
+            pkill -9 -f 'tar xzf' 2>/dev/null || true
+            sleep 2
+            echo "cleanup done"
+
       - name: Deploy Backend
         run: |
           cat > /tmp/deploy_key << 'EOF'
