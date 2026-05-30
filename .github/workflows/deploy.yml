@@ -146,34 +146,14 @@ jobs:
             sed "s|__APP_HOST__|127.0.0.1|g" /opt/smart/docs/nginx-smart.conf > /etc/nginx/sites-available/default
             nginx -t && systemctl restart nginx || echo "Nginx config error"
 
-      - name: Start Backend
+      - name: Test SSH Connection
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SERVER_HOST_ENTRY }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            mkdir -p /opt/smart/backend
-            cp -r /opt/smart/deploy/backend/. /opt/smart/backend/
-            cd /opt/smart/backend
-            sed -i "s|^SPRING_DATASOURCE_URL=.*|SPRING_DATASOURCE_URL=jdbc:mysql://${{ secrets.SERVER_HOST_APP }}:3306/PaiSmart?useSSL=false\&serverTimezone=Asia/Shanghai\&allowPublicKeyRetrieval=true|" .env
-            sed -i "s|^SPRING_DATA_REDIS_HOST=.*|SPRING_DATA_REDIS_HOST=${{ secrets.SERVER_HOST_APP }}|" .env
-            sed -i "s|^MINIO_ENDPOINT=.*|MINIO_ENDPOINT=http://${{ secrets.SERVER_HOST_APP }}:19000|" .env
-            sed -i "s|^MINIO_PUBLIC_URL=.*|MINIO_PUBLIC_URL=http://${{ secrets.SERVER_HOST_APP }}:19000|" .env
-            sed -i "s|^ELASTICSEARCH_HOST=.*|ELASTICSEARCH_HOST=${{ secrets.SERVER_HOST_INFRA }}|" .env
-            sed -i "s|^ELASTICSEARCH_PASSWORD=.*|ELASTICSEARCH_PASSWORD=${{ secrets.ELASTICSEARCH_PASSWORD }}|" .env
-            sed -i "s|^SPRING_KAFKA_BOOTSTRAP_SERVERS=.*|SPRING_KAFKA_BOOTSTRAP_SERVERS=${{ secrets.SERVER_HOST_INFRA }}:9092|" .env
-            sed -i "s|^DEEPSEEK_API_KEY=.*|DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}|" .env
-            sed -i "s|^EMBEDDING_API_KEY=.*|EMBEDDING_API_KEY=${{ secrets.EMBEDDING_API_KEY }}|" .env
-            sed -i "s|^JWT_SECRET_KEY=.*|JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}|" .env
-            sed -i "s|^SECURITY_ALLOWED_ORIGINS=.*|SECURITY_ALLOWED_ORIGINS=http://localhost:*,http://127.0.0.1:*,http://${{ secrets.SERVER_HOST_ENTRY }}|" .env
-            sed -i "s|^SPRING_PROFILES_ACTIVE=.*|SPRING_PROFILES_ACTIVE=prod|" .env
-            sed -i "s|^ADMIN_BOOTSTRAP_ENABLED=.*|ADMIN_BOOTSTRAP_ENABLED=true|" .env
-            apt-get install -y -qq openjdk-17-jre-headless 2>/dev/null || true
-            export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-            fuser -k 8081/tcp 2>/dev/null || true
-            pkill -f "java.*app\.jar" 2>/dev/null || true
-            sleep 2
-            set -a; source .env 2>/dev/null || true; set +a
-            nohup $JAVA_HOME/bin/java -server -Xms512m -Xmx512m -jar app.jar > /opt/smart/logs/backend.log 2>&1 &
-            echo "Backend started"
+            echo "=== SSH test start ==="
+            id
+            ls /opt/smart/
+            echo "=== SSH test end ==="
