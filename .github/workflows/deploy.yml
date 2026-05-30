@@ -116,14 +116,15 @@ jobs:
 
       # ============ ssh2 — App (Backend + Nginx + Frontend) ============
       - name: Deploy Backend
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST_ENTRY }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          source: "deploy/backend"
-          target: "/opt/smart/"
-          timeout: "120s"
+        run: |
+          cat > /tmp/deploy_key << 'EOF'
+          ${{ secrets.SERVER_SSH_KEY }}
+          EOF
+          chmod 600 /tmp/deploy_key
+          tar czf - deploy/backend | ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -i /tmp/deploy_key \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST_ENTRY }} \
+            "tar xzf - -C /opt/smart/"
+          rm -f /tmp/deploy_key
 
       - name: Deploy Frontend
         uses: appleboy/scp-action@v0.1.7
