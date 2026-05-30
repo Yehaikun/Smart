@@ -30,13 +30,6 @@ jobs:
           mkdir -p ../deploy/frontend/dist
           cp -r dist/* ../deploy/frontend/dist/
 
-      # 准备部署用的配置文件（不含 JAR，JAR 在服务器编译）
-      - name: Prepare Deploy Config
-        run: |
-          mkdir -p deploy/backend
-          cp launch.sh.example deploy/backend/launch.sh
-          cp .env.example deploy/backend/.env
-
       # ============ ssh1 — Infra (ES + Kafka) ============
       - name: Deploy Infra Config
         uses: appleboy/scp-action@v0.1.7
@@ -126,16 +119,6 @@ jobs:
             sleep 1
             echo "cleanup done"
 
-      - name: Deploy Source Code
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST_ENTRY }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          source: "pom.xml,src/,deploy/backend"
-          target: "/opt/smart/build/"
-          timeout: "120s"
-
       - name: Build Backend on Server
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -151,13 +134,19 @@ jobs:
             cat > ~/.m2/settings.xml << 'XML'
             <settings><mirrors><mirror><id>aliyun</id><mirrorOf>central</mirrorOf><url>https://maven.aliyun.com/repository/central</url></mirror></mirrors></settings>
             XML
+            # 获取最新代码
+            if [ -d /opt/smart/build/.git ]; then
+              cd /opt/smart/build && git pull
+            else
+              rm -rf /opt/smart/build && git clone https://github.com/Yehaikun/Smart.git /opt/smart/build
+            fi
             # 编译
             cd /opt/smart/build
             mvn clean package -DskipTests -q -T 2C
-            # 复制产物
+            # 复制产物和配置
             cp target/*.jar /opt/smart/backend/app.jar
-            cp deploy/backend/launch.sh /opt/smart/backend/
-            cp deploy/backend/.env /opt/smart/backend/
+            cp launch.sh.example /opt/smart/backend/launch.sh
+            cp .env.example /opt/smart/backend/.env
             echo "Build complete"
 
       - name: Deploy Frontend
