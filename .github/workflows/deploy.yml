@@ -55,8 +55,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            cd /opt/smart
-            INFRA_HOST=${{ secrets.SERVER_HOST_INFRA }} docker compose -f docker-compose-infra.yml up -d
+            INFRA_HOST=${{ secrets.SERVER_HOST_INFRA }} docker compose -f /opt/smart/docs/docker-compose-infra.yml up -d
 
       # ============ ssh3 — App (Backend + MySQL + Redis + MinIO) ============
       - name: Deploy App Config
