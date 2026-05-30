@@ -21,14 +21,6 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Build Backend
-        run: |
-          mvn clean package -DskipTests -q
-          mkdir -p deploy/backend
-          cp target/*.jar deploy/backend/app.jar
-          cp launch.sh.example deploy/backend/launch.sh
-          cp .env.example deploy/backend/.env
-
       - name: Build Frontend
         run: |
           cd frontend
@@ -37,6 +29,13 @@ jobs:
           pnpm build
           mkdir -p ../deploy/frontend/dist
           cp -r dist/* ../deploy/frontend/dist/
+
+      # 准备部署用的配置文件（不含 JAR，JAR 在服务器编译）
+      - name: Prepare Deploy Config
+        run: |
+          mkdir -p deploy/backend
+          cp launch.sh.example deploy/backend/launch.sh
+          cp .env.example deploy/backend/.env
 
       # ============ ssh1 — Infra (ES + Kafka) ============
       - name: Deploy Infra Config
@@ -127,16 +126,39 @@ jobs:
             sleep 1
             echo "cleanup done"
 
-      - name: Deploy Backend
-        run: |
-          cat > /tmp/deploy_key << 'EOF'
-          ${{ secrets.SERVER_SSH_KEY }}
-          EOF
-          chmod 600 /tmp/deploy_key
-          tar czf - deploy/backend | ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -i /tmp/deploy_key \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST_ENTRY }} \
-            "tar xzf - -C /opt/smart/"
-          rm -f /tmp/deploy_key
+      - name: Deploy Source Code
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST_ENTRY }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "pom.xml,src/,deploy/backend"
+          target: "/opt/smart/build/"
+          timeout: "120s"
+
+      - name: Build Backend on Server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST_ENTRY }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          command_timeout: 600
+          script: |
+            # 安装 Maven（首次安装后有缓存）
+            DEBIAN_FRONTEND=noninteractive apt-get install -y -qq maven 2>/dev/null || true
+            # 配置阿里云 Maven 镜像加速
+            mkdir -p ~/.m2
+            cat > ~/.m2/settings.xml << 'XML'
+            <settings><mirrors><mirror><id>aliyun</id><mirrorOf>central</mirrorOf><url>https://maven.aliyun.com/repository/central</url></mirror></mirrors></settings>
+            XML
+            # 编译
+            cd /opt/smart/build
+            mvn clean package -DskipTests -q -T 2C
+            # 复制产物
+            cp target/*.jar /opt/smart/backend/app.jar
+            cp deploy/backend/launch.sh /opt/smart/backend/
+            cp deploy/backend/.env /opt/smart/backend/
+            echo "Build complete"
 
       - name: Deploy Frontend
         uses: appleboy/scp-action@v0.1.7
@@ -168,8 +190,6 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            mkdir -p /opt/smart/backend
-            cp -r /opt/smart/deploy/backend/. /opt/smart/backend/
             cd /opt/smart/backend
             sed -i "s|^SPRING_DATASOURCE_URL=.*|SPRING_DATASOURCE_URL=jdbc:mysql://${{ secrets.SERVER_HOST_APP }}:3306/PaiSmart?useSSL=false\&serverTimezone=Asia/Shanghai\&allowPublicKeyRetrieval=true|" .env
             sed -i "s|^SPRING_DATA_REDIS_HOST=.*|SPRING_DATA_REDIS_HOST=${{ secrets.SERVER_HOST_APP }}|" .env
