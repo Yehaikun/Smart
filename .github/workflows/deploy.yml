@@ -126,7 +126,7 @@ jobs:
 
             # 1. 创建目录并整理文件
             mkdir -p /opt/smart/backend
-            cp -r /opt/smart/deploy/backend/* /opt/smart/backend/
+            cp -r /opt/smart/deploy/backend/. /opt/smart/backend/
 
             # 2. 配置 Nginx
             apt-get update -qq
