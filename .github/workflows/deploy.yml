@@ -119,20 +119,6 @@ jobs:
             sleep 1
             echo "cleanup done"
 
-      - name: Install GitHub Deploy Key
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.SERVER_HOST_ENTRY }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          script: |
-            mkdir -p ~/.ssh
-            # 将 Actions 用的 SSH key 写入服务器，用于 git clone
-            echo '${{ secrets.SERVER_SSH_KEY }}' > ~/.ssh/github_key
-            chmod 600 ~/.ssh/github_key
-            ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
-            echo "deploy key installed"
-
       - name: Build Backend on Server
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -148,12 +134,19 @@ jobs:
             cat > ~/.m2/settings.xml << 'XML'
             <settings><mirrors><mirror><id>aliyun</id><mirrorOf>central</mirrorOf><url>https://maven.aliyun.com/repository/central</url></mirror></mirrors></settings>
             XML
-            # 获取最新代码（用 GitHub Actions 的 SSH key）
+            # 配置 GitHub SSH 密钥用于 git clone
+            mkdir -p ~/.ssh
+            cat > ~/.ssh/github_key << 'GITKEY'
+            ${{ secrets.SERVER_SSH_KEY }}
+            GITKEY
+            chmod 600 ~/.ssh/github_key
+            grep -q 'github.com' ~/.ssh/known_hosts 2>/dev/null || ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
             export GIT_SSH_COMMAND="ssh -i ~/.ssh/github_key -o StrictHostKeyChecking=no"
+            # 获取最新代码
             if [ -d /opt/smart/build/.git ]; then
-              cd /opt/smart/build && $GIT_SSH_COMMAND git pull
+              cd /opt/smart/build && git pull
             else
-              rm -rf /opt/smart/build && git clone git@github.com:Yehaikun/Smart.git /opt/smart/build
+              git clone git@github.com:Yehaikun/Smart.git /opt/smart/build
             fi
             # 编译
             cd /opt/smart/build
