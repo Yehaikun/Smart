@@ -8,6 +8,11 @@ spring:
     multipart:
       max-file-size: 50MB
       max-request-size: 100MB
+  kafka:
+    consumer:
+      properties:
+        max.poll.interval.ms: 600000
+        max.poll.records: 1
 
 admin:
   bootstrap:
@@ -23,6 +28,10 @@ app:
     registration:
       mode: INVITE_ONLY
       invite-required: true
+
+embedding:
+  api:
+    batch-size: 25
 
 elasticsearch:
   insecure-trust-all-certificates: false
