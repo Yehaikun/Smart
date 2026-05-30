@@ -22,6 +22,8 @@ jobs:
           node-version: '22'
 
       - name: Build Frontend
+        env:
+          VITE_AUTH_ROUTE_MODE: static
         run: |
           cd frontend
           npm install -g pnpm@9
