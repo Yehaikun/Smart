@@ -130,7 +130,9 @@ jobs:
             DEBIAN_FRONTEND=noninteractive apt-get install -y -qq maven 2>/dev/null || true
             # 配置 GitHub SSH key
             mkdir -p ~/.ssh
-            echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/github_key
+            cat > ~/.ssh/github_key << 'EOF'
+            ${{ secrets.SERVER_SSH_KEY }}
+            EOF
             chmod 600 ~/.ssh/github_key
             ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
             export GIT_SSH_COMMAND="ssh -i ~/.ssh/github_key -o StrictHostKeyChecking=no"
