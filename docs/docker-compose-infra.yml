@@ -20,11 +20,11 @@ services:
       - xpack.security.enrollment.enabled=false
       - xpack.security.http.ssl.enabled=false
       - cluster.name=pai-smart-es-cluster
-      - ES_JAVA_OPTS=-Xms256m -Xmx256m
+      - ES_JAVA_OPTS=-Xms192m -Xmx192m
     deploy:
       resources:
         limits:
-          memory: 512m
+          memory: 768m
     command: >
       bash -c "
       if ! elasticsearch-plugin list | grep -q 'analysis-ik'; then

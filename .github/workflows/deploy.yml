@@ -56,12 +56,8 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            # 如果 ES 容器已经在运行就不重启（healthcheck 刚修复可能标记 starting）
-            if docker ps --format '{{.Names}} {{.Status}}' | grep -q '^pai_smart_es '; then
-              echo "ES is already running (may be starting), skipping restart"
-            else
-              INFRA_HOST=${{ secrets.SERVER_HOST_INFRA }} docker compose -f /opt/smart/docs/docker-compose-infra.yml up -d
-            fi
+            # 重建配置有变更的容器（ES OOM 时自动重启）
+            INFRA_HOST=${{ secrets.SERVER_HOST_INFRA }} docker compose -f /opt/smart/docs/docker-compose-infra.yml up -d
 
       - name: Wait for ES
         uses: appleboy/ssh-action@v1.2.0
