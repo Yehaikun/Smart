@@ -161,6 +161,7 @@ jobs:
             sed -i "s|^MINIO_ENDPOINT=.*|MINIO_ENDPOINT=http://${{ secrets.SERVER_HOST_APP }}:19000|" .env
             sed -i "s|^MINIO_PUBLIC_URL=.*|MINIO_PUBLIC_URL=http://${{ secrets.SERVER_HOST_APP }}:19000|" .env
             sed -i "s|^ELASTICSEARCH_HOST=.*|ELASTICSEARCH_HOST=${{ secrets.SERVER_HOST_INFRA }}|" .env
+            sed -i "s|^ELASTICSEARCH_SCHEME=.*|ELASTICSEARCH_SCHEME=http|" .env
             sed -i "s|^ELASTICSEARCH_PASSWORD=.*|ELASTICSEARCH_PASSWORD=${{ secrets.ELASTICSEARCH_PASSWORD }}|" .env
             sed -i "s|^SPRING_KAFKA_BOOTSTRAP_SERVERS=.*|SPRING_KAFKA_BOOTSTRAP_SERVERS=${{ secrets.SERVER_HOST_INFRA }}:9092|" .env
             sed -i "s|^DEEPSEEK_API_KEY=.*|DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}|" .env
