@@ -178,16 +178,14 @@ jobs:
             apt-get install -y -qq openjdk-17-jre-headless 2>/dev/null || echo "java install skipped"
             echo "=== 6 java installed ==="
             export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-            echo "=== 7a fuser ==="
+            echo "=== 7 kill old ==="
             fuser -k 8081/tcp 2>/dev/null || true
-            echo "=== 7b pkill ==="
-            pkill -f "java.*app\.jar" 2>/dev/null || true
-            echo "=== 7c sleep ==="
-            sleep 1
-            echo "=== 7d source .env ==="
-            set -a
-            source .env 2>/dev/null || true
-            set +a
-            echo "=== 7e nohup ==="
+            echo "=== 8 source .env ==="
+            while IFS= read -r line; do
+              [[ "$line" =~ ^[[:space:]]*# ]] && continue
+              [[ -z "${line// }" ]] && continue
+              export "$line" 2>/dev/null || true
+            done < .env
+            echo "=== 9 start ==="
             nohup $JAVA_HOME/bin/java -server -Xms512m -Xmx512m -jar app.jar > /opt/smart/logs/backend.log 2>&1 &
-            echo "=== 8 backend started ==="
+            echo "=== 10 done ==="
