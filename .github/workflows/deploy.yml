@@ -125,22 +125,14 @@ jobs:
           host: ${{ secrets.SERVER_HOST_ENTRY }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          command_timeout: 600
           script: |
             # 安装 Maven（首次安装后有缓存）
             DEBIAN_FRONTEND=noninteractive apt-get install -y -qq maven 2>/dev/null || true
-            # 配置阿里云 Maven 镜像加速
-            mkdir -p ~/.m2
-            cat > ~/.m2/settings.xml << 'XML'
-            <settings><mirrors><mirror><id>aliyun</id><mirrorOf>central</mirrorOf><url>https://maven.aliyun.com/repository/central</url></mirror></mirrors></settings>
-            XML
-            # 配置 GitHub SSH 密钥用于 git clone
+            # 配置 GitHub SSH key
             mkdir -p ~/.ssh
-            cat > ~/.ssh/github_key << 'GITKEY'
-            ${{ secrets.SERVER_SSH_KEY }}
-            GITKEY
+            echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/github_key
             chmod 600 ~/.ssh/github_key
-            grep -q 'github.com' ~/.ssh/known_hosts 2>/dev/null || ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+            ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
             export GIT_SSH_COMMAND="ssh -i ~/.ssh/github_key -o StrictHostKeyChecking=no"
             # 获取最新代码
             if [ -d /opt/smart/build/.git ]; then
