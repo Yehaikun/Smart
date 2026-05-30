@@ -38,40 +38,113 @@ jobs:
           mkdir -p ../deploy/frontend/dist
           cp -r dist/* ../deploy/frontend/dist/
 
-      - name: Deploy to Server
+      # ============ ssh1 — Infra (ES + Kafka) ============
+      - name: Deploy Infra Config
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.SERVER_HOST }}
+          host: ${{ secrets.SERVER_HOST_INFRA }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          source: "deploy/*"
+          source: "docs/docker-compose-infra.yml"
           target: "/opt/smart/"
-          strip_components: 1
 
-      - name: Restart Services
+      - name: Start Infra Services
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.SERVER_HOST }}
+          host: ${{ secrets.SERVER_HOST_INFRA }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
+            cd /opt/smart
+            INFRA_HOST=${{ secrets.SERVER_HOST_INFRA }} docker compose -f docker-compose-infra.yml up -d
+
+      # ============ ssh3 — App (Backend + MySQL + Redis + MinIO) ============
+      - name: Deploy App Config
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST_APP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "deploy/backend,docs/docker-compose-app.yml"
+          target: "/opt/smart/"
+
+      - name: Start App Services
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST_APP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            set -e
+
+            # 1. 整理文件
+            mkdir -p /opt/smart/backend
+            cp -r /opt/smart/deploy/backend/* /opt/smart/backend/
+            cp /opt/smart/docs/docker-compose-app.yml /opt/smart/docker-compose-app.yml 2>/dev/null || true
+
+            # 2. 启动 Docker 服务（MySQL + Redis + MinIO）
+            cd /opt/smart
+            docker compose -f docker-compose-app.yml up -d
+
+            # 3. 等待 MySQL 就绪
+            echo "Waiting for MySQL..."
+            for i in $(seq 1 30); do
+              docker exec pai_smart_mysql mysqladmin ping -h localhost --silent 2>/dev/null && break
+              sleep 2
+            done
+
+            # 4. 创建数据库
+            docker exec pai_smart_mysql mysql -u root -pPaiSmart2025 -e \
+              "CREATE DATABASE IF NOT EXISTS PaiSmart DEFAULT CHARACTER SET utf8mb4" 2>/dev/null || true
+
+            # 5. 注入 .env 配置
             cd /opt/smart/backend
+            sed -i "s|^ELASTICSEARCH_HOST=.*|ELASTICSEARCH_HOST=${{ secrets.SERVER_HOST_INFRA }}|" .env
+            sed -i "s|^ELASTICSEARCH_PASSWORD=.*|ELASTICSEARCH_PASSWORD=${{ secrets.ELASTICSEARCH_PASSWORD }}|" .env
+            sed -i "s|^SPRING_KAFKA_BOOTSTRAP_SERVERS=.*|SPRING_KAFKA_BOOTSTRAP_SERVERS=${{ secrets.SERVER_HOST_INFRA }}:9092|" .env
             sed -i "s|^DEEPSEEK_API_KEY=.*|DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}|" .env
             sed -i "s|^EMBEDDING_API_KEY=.*|EMBEDDING_API_KEY=${{ secrets.EMBEDDING_API_KEY }}|" .env
             sed -i "s|^JWT_SECRET_KEY=.*|JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}|" .env
-            sed -i "s|^ELASTICSEARCH_PASSWORD=.*|ELASTICSEARCH_PASSWORD=${{ secrets.ELASTICSEARCH_PASSWORD }}|" .env
-            # 确保 MySQL 数据库存在
-            docker exec mysql mysql -u root -p${SPRING_DATASOURCE_PASSWORD:-PaiSmart2025} -e "CREATE DATABASE IF NOT EXISTS PaiSmart DEFAULT CHARACTER SET utf8mb4" 2>/dev/null || true
+            sed -i "s|^SECURITY_ALLOWED_ORIGINS=.*|SECURITY_ALLOWED_ORIGINS=http://localhost:*,http://127.0.0.1:*,http://${{ secrets.SERVER_HOST_ENTRY }}|" .env
+            sed -i "s|^SPRING_PROFILES_ACTIVE=.*|SPRING_PROFILES_ACTIVE=prod|" .env
+            sed -i "s|^ADMIN_BOOTSTRAP_ENABLED=.*|ADMIN_BOOTSTRAP_ENABLED=true|" .env
 
-            # 启动后端
+            # 6. 启动后端
             chmod +x launch.sh
-            ./launch.sh restart 2>/dev/null || (
-              mkdir -p /opt/smart/logs
-              export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-              export SPRING_PROFILES_ACTIVE=prod
-              nohup $JAVA_HOME/bin/java -server -Xms512m -Xmx512m -jar app.jar > /opt/smart/logs/backend.log 2>&1 &
-            )
-            apt install -y nginx -q
+            mkdir -p /opt/smart/logs
+            export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+            set -a
+            source .env 2>/dev/null || true
+            set +a
+            nohup $JAVA_HOME/bin/java -server -Xms512m -Xmx512m -jar app.jar > /opt/smart/logs/backend.log 2>&1 &
+            echo "Backend started, PID: $!"
+
+      # ============ ssh2 — Entry (Nginx + Frontend) ============
+      - name: Deploy Frontend
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST_ENTRY }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "deploy/frontend/dist,docs/nginx-smart.conf"
+          target: "/opt/smart/"
+
+      - name: Setup Nginx
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST_ENTRY }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            # 安装 Nginx（如未安装）
+            apt-get update -qq
+            apt-get install -y -qq nginx 2>/dev/null || true
+
+            # 部署前端文件
             rm -rf /var/www/html/*
-            cp -r /opt/smart/frontend/dist/* /var/www/html/
-            systemctl restart nginx
+            cp -r /opt/smart/deploy/frontend/dist/* /var/www/html/ 2>/dev/null || true
+
+            # 写入 Nginx 配置（替换 __APP_HOST__ 为后端 IP）
+            sed "s|__APP_HOST__|${{ secrets.SERVER_HOST_APP }}|g" /opt/smart/docs/nginx-smart.conf > /etc/nginx/sites-available/default
+
+            nginx -t && systemctl restart nginx || echo "Nginx config error, check manually"

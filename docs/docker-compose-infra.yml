@@ -1,0 +1,95 @@
+# 部署到 ssh1 (113.45.200.224) — Elasticsearch + Kafka
+# INFRA_HOST 需设为 ssh1 的公网 IP，以便后端能从 ssh3 连接
+name: pai_smart_infra
+
+services:
+  es:
+    image: elasticsearch:8.10.4
+    container_name: pai_smart_es
+    restart: always
+    ports:
+      - 9200:9200
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    environment:
+      - ELASTIC_PASSWORD=PaiSmart2025
+      - node.name=pai-smart-es01
+      - discovery.type=single-node
+      - xpack.license.self_generated.type=basic
+      - xpack.security.enabled=true
+      - xpack.security.enrollment.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - cluster.name=pai-smart-es-cluster
+      - ES_JAVA_OPTS=-Xms256m -Xmx256m
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    command: >
+      bash -c "
+      if ! elasticsearch-plugin list | grep -q 'analysis-ik'; then
+        echo 'Installing analysis-ik plugin...';
+        elasticsearch-plugin install --batch https://release.infinilabs.com/analysis-ik/stable/elasticsearch-analysis-ik-8.10.4.zip;
+      else
+        echo 'analysis-ik plugin already installed.';
+      fi;
+      /usr/local/bin/docker-entrypoint.sh
+      "
+    healthcheck:
+      test: [ 'CMD', 'curl', '-s', 'http://localhost:9200/_cluster/health?pretty' ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  kafka:
+    image: bitnamilegacy/kafka:latest
+    container_name: pai_smart_kafka
+    restart: always
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      - KAFKA_CFG_NODE_ID=0
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@localhost:9093
+      - KAFKA_CFG_LISTENERS=CONTROLLER://:9093,PLAINTEXT://:9092
+      # 外部客户端（后端所在的 ssh3）通过公网 IP 连接 Kafka
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://${INFRA_HOST}:9092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+    volumes:
+      - kafka-data:/bitnami/kafka
+    command:
+      - sh
+      - -c
+      - |
+        /opt/bitnami/scripts/kafka/run.sh &
+        echo "Waiting for Kafka to start..."
+        while ! kafka-topics.sh --bootstrap-server localhost:9092 --list 2>/dev/null; do
+          sleep 2
+        done
+        echo "Creating topic: file-processing"
+        kafka-topics.sh --create \
+          --bootstrap-server localhost:9092 \
+          --replication-factor 1 --partitions 1 \
+          --topic file-processing 2>/dev/null || true
+        echo "Creating topic: vectorization"
+        kafka-topics.sh --create \
+          --bootstrap-server localhost:9092 \
+          --replication-factor 1 --partitions 1 \
+          --topic vectorization 2>/dev/null || true
+        tail -f /dev/null
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  es-data:
+  kafka-data:
