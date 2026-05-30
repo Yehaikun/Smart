@@ -13,6 +13,11 @@ admin:
   bootstrap:
     enabled: false
 
+usage-quota:
+  embedding:
+    init-tokens: 500000
+    admin-init-tokens: 1000000
+
 app:
   auth:
     registration:

@@ -126,9 +126,6 @@ watch(
         </template>
       </NInput>
     </NFormItem>
-    <div class="register-form-tip mb-4">
-      {{ $t('page.login.register.inviteCodeTip') }}
-    </div>
     <NSpace vertical :size="18" class="w-full">
       <NButton type="primary" size="large" round block :loading="loading" @click="handleSubmit">
         {{ $t('page.login.common.register') }}
