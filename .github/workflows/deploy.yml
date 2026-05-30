@@ -33,8 +33,7 @@ jobs:
         run: |
           cd frontend
           npm install -g pnpm
-          pnpm config set onlyBuiltDependencies '[]' --location=project
-          pnpm install --no-frozen-lockfile
+          pnpm install --no-frozen-lockfile --ignore-scripts
           pnpm build
           mkdir -p ../deploy/frontend/dist
           cp -r dist/* ../deploy/frontend/dist/
