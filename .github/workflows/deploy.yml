@@ -47,6 +47,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           source: "docs/docker-compose-infra.yml"
           target: "/opt/smart/"
+          timeout: "60s"
 
       - name: Start Infra Services
         uses: appleboy/ssh-action@v1.2.0
@@ -64,8 +65,19 @@ jobs:
           host: ${{ secrets.SERVER_HOST_APP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          source: "deploy/backend,docs/docker-compose-app.yml"
+          source: "docs/docker-compose-app.yml"
           target: "/opt/smart/"
+          timeout: "120s"
+
+      - name: Deploy Backend JAR
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST_APP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "deploy/backend"
+          target: "/opt/smart/"
+          timeout: "180s"
 
       - name: Start App Services
         uses: appleboy/ssh-action@v1.2.0
@@ -127,6 +139,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           source: "deploy/frontend/dist,docs/nginx-smart.conf"
           target: "/opt/smart/"
+          timeout: "120s"
 
       - name: Setup Nginx
         uses: appleboy/ssh-action@v1.2.0
