@@ -33,10 +33,8 @@ jobs:
         run: |
           cd frontend
           npm install -g pnpm
-          pnpm install --no-frozen-lockfile --shamefully-hoist
+          pnpm install --no-frozen-lockfile
           pnpm build
-          mkdir -p ../deploy/frontend/dist
-          cp -r dist/* ../deploy/frontend/dist/
 
       - name: Deploy to Server
         uses: appleboy/scp-action@v0.1.7
@@ -55,18 +53,13 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            # 写入 API 密钥
             cd /opt/smart/backend
             sed -i "s|^DEEPSEEK_API_KEY=.*|DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}|" .env
             sed -i "s|^EMBEDDING_API_KEY=.*|EMBEDDING_API_KEY=${{ secrets.EMBEDDING_API_KEY }}|" .env
             sed -i "s|^JWT_SECRET_KEY=.*|JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}|" .env
             sed -i "s|^ELASTICSEARCH_PASSWORD=.*|ELASTICSEARCH_PASSWORD=${{ secrets.ELASTICSEARCH_PASSWORD }}|" .env
-
-            # 启动/重启后端
             chmod +x launch.sh
             ./launch.sh restart 2>/dev/null || nohup java -jar app.jar --spring.config.additional-location=.env > /opt/smart/logs/backend.log 2>&1 &
-
-            # 前端用 nginx
             apt install -y nginx -q
             rm -rf /var/www/html/*
             cp -r /opt/smart/frontend/dist/* /var/www/html/
