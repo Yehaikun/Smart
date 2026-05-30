@@ -19,9 +19,12 @@ admin:
     enabled: false
 
 usage-quota:
+  use-user-token-balance: true
   embedding:
-    init-tokens: 500000
-    admin-init-tokens: 1000000
+    enabled: true
+    day-max-tokens: 100000000
+    init-tokens: 100000000
+    admin-init-tokens: 100000000
 
 app:
   auth:
