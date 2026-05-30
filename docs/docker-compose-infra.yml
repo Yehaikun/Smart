@@ -36,7 +36,7 @@ services:
       /usr/local/bin/docker-entrypoint.sh
       "
     healthcheck:
-      test: [ 'CMD', 'curl', '-s', 'http://localhost:9200/_cluster/health?pretty' ]
+      test: [ 'CMD', 'curl', '-s', '-u', 'elastic:PaiSmart2025', 'http://localhost:9200/_cluster/health?pretty' ]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -56,9 +56,9 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            # 如果 ES 已经健康运行就不重启
-            if docker ps --filter name=pai_smart_es --filter status=running --format '{{.Status}}' | grep -q '(healthy)'; then
-              echo "ES is already healthy, skipping restart"
+            # 如果 ES 容器已经在运行就不重启（healthcheck 刚修复可能标记 starting）
+            if docker ps --format '{{.Names}} {{.Status}}' | grep -q '^pai_smart_es '; then
+              echo "ES is already running (may be starting), skipping restart"
             else
               INFRA_HOST=${{ secrets.SERVER_HOST_INFRA }} docker compose -f /opt/smart/docs/docker-compose-infra.yml up -d
             fi
