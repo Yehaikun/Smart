@@ -181,8 +181,9 @@ jobs:
             apt-get install -y -qq openjdk-17-jre-headless 2>/dev/null || true
             export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 
-            # 5. 杀掉占用 8081 端口的旧进程
+            # 5. 杀掉旧后端进程
             fuser -k 8081/tcp 2>/dev/null || true
+            pkill -f 'java.*-jar.*app\.jar' 2>/dev/null || true
             sleep 2
 
             # 6. 启动后端
