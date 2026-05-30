@@ -4,6 +4,11 @@ spring:
       ddl-auto: update
     show-sql: false
 
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 100MB
+
 admin:
   bootstrap:
     enabled: false
