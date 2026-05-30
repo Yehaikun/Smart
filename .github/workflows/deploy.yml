@@ -89,6 +89,12 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             docker compose -f /opt/smart/docs/docker-compose-app.yml up -d
+            # 等待 MinIO 就绪并创建 uploads 桶
+            for i in $(seq 1 15); do
+              docker exec pai_smart_minio mc alias set local http://localhost:19000 admin PaiSmart2025 --api S3v4 2>/dev/null && break
+              sleep 2
+            done
+            docker exec pai_smart_minio mc mb local/uploads --ignore-existing 2>/dev/null || true
 
       - name: Init Database
         uses: appleboy/ssh-action@v1.2.0
@@ -189,6 +195,8 @@ jobs:
             sed -i "s|^SPRING_DATA_REDIS_PASSWORD=.*|SPRING_DATA_REDIS_PASSWORD=PaiSmart2025|" .env
             sed -i "s|^MINIO_ENDPOINT=.*|MINIO_ENDPOINT=http://${{ secrets.SERVER_HOST_APP }}:19000|" .env
             sed -i "s|^MINIO_PUBLIC_URL=.*|MINIO_PUBLIC_URL=http://${{ secrets.SERVER_HOST_APP }}:19000|" .env
+            sed -i "s|^MINIO_ACCESS_KEY=.*|MINIO_ACCESS_KEY=admin|" .env
+            sed -i "s|^MINIO_SECRET_KEY=.*|MINIO_SECRET_KEY=PaiSmart2025|" .env
             sed -i "s|^ELASTICSEARCH_HOST=.*|ELASTICSEARCH_HOST=${{ secrets.SERVER_HOST_INFRA }}|" .env
             sed -i "s|^ELASTICSEARCH_SCHEME=.*|ELASTICSEARCH_SCHEME=http|" .env
             sed -i "s|^ELASTICSEARCH_INSECURE_TRUST_ALL_CERTIFICATES=.*|ELASTICSEARCH_INSECURE_TRUST_ALL_CERTIFICATES=false|" .env

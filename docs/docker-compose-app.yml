@@ -48,6 +48,12 @@ services:
       MINIO_ROOT_USER: admin
       MINIO_ROOT_PASSWORD: PaiSmart2025
     command: server /data --console-address ":19001" -address ":19000"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
   redis-data:
