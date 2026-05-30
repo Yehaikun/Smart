@@ -153,16 +153,12 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            echo "=== 1 copy files ==="
             mkdir -p /opt/smart/backend
             cp -r /opt/smart/deploy/backend/. /opt/smart/backend/
-            echo "=== 2 files copied ==="
             cd /opt/smart/backend
-            ls -la
-            echo "=== 3 env inject ==="
-            sed -i "s|^SPRING_DATASOURCE_URL=.*|SPRING_DATASOURCE_URL=jdbc:mysql://${{ secrets.SERVER_HOST_APP }}:3306/PaiSmart?useSSL=false\&serverTimezone=Asia/Shanghai\&allowPublicKeyRetrieval=true|" .env && echo "  DS ok" || echo "  DS fail"
-            sed -i "s|^SPRING_DATA_REDIS_HOST=.*|SPRING_DATA_REDIS_HOST=${{ secrets.SERVER_HOST_APP }}|" .env && echo "  Redis ok" || echo "  Redis fail"
-            sed -i "s|^MINIO_ENDPOINT=.*|MINIO_ENDPOINT=http://${{ secrets.SERVER_HOST_APP }}:19000|" .env && echo "  Minio ok" || echo "  Minio fail"
+            sed -i "s|^SPRING_DATASOURCE_URL=.*|SPRING_DATASOURCE_URL=jdbc:mysql://${{ secrets.SERVER_HOST_APP }}:3306/PaiSmart?useSSL=false\&serverTimezone=Asia/Shanghai\&allowPublicKeyRetrieval=true|" .env
+            sed -i "s|^SPRING_DATA_REDIS_HOST=.*|SPRING_DATA_REDIS_HOST=${{ secrets.SERVER_HOST_APP }}|" .env
+            sed -i "s|^MINIO_ENDPOINT=.*|MINIO_ENDPOINT=http://${{ secrets.SERVER_HOST_APP }}:19000|" .env
             sed -i "s|^MINIO_PUBLIC_URL=.*|MINIO_PUBLIC_URL=http://${{ secrets.SERVER_HOST_APP }}:19000|" .env
             sed -i "s|^ELASTICSEARCH_HOST=.*|ELASTICSEARCH_HOST=${{ secrets.SERVER_HOST_INFRA }}|" .env
             sed -i "s|^ELASTICSEARCH_PASSWORD=.*|ELASTICSEARCH_PASSWORD=${{ secrets.ELASTICSEARCH_PASSWORD }}|" .env
@@ -173,19 +169,12 @@ jobs:
             sed -i "s|^SECURITY_ALLOWED_ORIGINS=.*|SECURITY_ALLOWED_ORIGINS=http://localhost:*,http://127.0.0.1:*,http://${{ secrets.SERVER_HOST_ENTRY }}|" .env
             sed -i "s|^SPRING_PROFILES_ACTIVE=.*|SPRING_PROFILES_ACTIVE=prod|" .env
             sed -i "s|^ADMIN_BOOTSTRAP_ENABLED=.*|ADMIN_BOOTSTRAP_ENABLED=true|" .env
-            echo "=== 4 env done ==="
-            echo "=== 5 install java ==="
-            apt-get install -y -qq openjdk-17-jre-headless 2>/dev/null || echo "java install skipped"
-            echo "=== 6 java installed ==="
+            apt-get install -y -qq openjdk-17-jre-headless 2>/dev/null || true
             export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-            echo "=== 7 kill old ==="
             fuser -k 8081/tcp 2>/dev/null || true
-            echo "=== 8 source .env ==="
             while IFS= read -r line; do
               [[ "$line" =~ ^[[:space:]]*# ]] && continue
               [[ -z "${line// }" ]] && continue
               export "$line" 2>/dev/null || true
             done < .env
-            echo "=== 9 start ==="
             nohup $JAVA_HOME/bin/java -server -Xms512m -Xmx512m -jar app.jar > /opt/smart/logs/backend.log 2>&1 &
-            echo "=== 10 done ==="
