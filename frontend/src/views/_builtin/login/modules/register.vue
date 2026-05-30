@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { normalizeBackendMessage } from '@/service/request/shared';
+
 defineOptions({
   name: 'Register'
 });
@@ -6,16 +8,25 @@ defineOptions({
 const { toggleLoginModule } = useRouterPush();
 const { formRef, validate } = useNaiveForm();
 
+const inviteCodeErrorCodes = new Set([
+  'INVITE_CODE_REQUIRED',
+  'INVITE_CODE_INVALID',
+  'INVITE_CODE_EXPIRED',
+  'INVITE_CODE_EXHAUSTED'
+]);
+
 interface FormModel {
   username: string;
   password: string;
   confirmPassword: string;
+  inviteCode: string;
 }
 
 const model: FormModel = reactive({
   username: '',
   password: '',
-  confirmPassword: ''
+  confirmPassword: '',
+  inviteCode: ''
 });
 
 const rules = computed<Record<keyof FormModel, App.Global.FormRule[]>>(() => {
@@ -24,22 +35,44 @@ const rules = computed<Record<keyof FormModel, App.Global.FormRule[]>>(() => {
   return {
     username: formRules.userName,
     password: formRules.pwd,
-    confirmPassword: createConfirmPwdRule(model.password)
+    confirmPassword: createConfirmPwdRule(model.password),
+    inviteCode: [defaultRequiredRule]
   };
 });
 
 const loading = ref(false);
+const inviteCodeErrorMessage = ref('');
+
+function clearInviteCodeError() {
+  inviteCodeErrorMessage.value = '';
+}
 
 async function handleSubmit() {
+  clearInviteCodeError();
   await validate();
   loading.value = true;
-  const { error } = await fetchRegister(model.username, model.password);
+  const { error } = await fetchRegister(model.username, model.password, model.inviteCode.trim());
   if (!error) {
     window.$message?.success('注册成功');
     toggleLoginModule('pwd-login');
+  } else {
+    const rawMessage = String(error?.response?.data?.message || error?.message || '');
+    const message = normalizeBackendMessage(rawMessage || '注册失败，请稍后重试');
+    if (inviteCodeErrorCodes.has(rawMessage)) {
+      inviteCodeErrorMessage.value = message;
+    }
   }
   loading.value = false;
 }
+
+watch(
+  () => model.inviteCode,
+  () => {
+    if (inviteCodeErrorMessage.value) {
+      clearInviteCodeError();
+    }
+  }
+);
 </script>
 
 <template>
@@ -82,6 +115,20 @@ async function handleSubmit() {
         </template>
       </NInput>
     </NFormItem>
+    <NFormItem
+      path="inviteCode"
+      :validation-status="inviteCodeErrorMessage ? 'error' : undefined"
+      :feedback="inviteCodeErrorMessage || undefined"
+    >
+      <NInput v-model:value="model.inviteCode" :placeholder="$t('page.login.common.inviteCodePlaceholder')">
+        <template #prefix>
+          <icon-ant-design:safety-certificate-outlined />
+        </template>
+      </NInput>
+    </NFormItem>
+    <div class="register-form-tip mb-4">
+      {{ $t('page.login.register.inviteCodeTip') }}
+    </div>
     <NSpace vertical :size="18" class="w-full">
       <NButton type="primary" size="large" round block :loading="loading" @click="handleSubmit">
         {{ $t('page.login.common.register') }}
@@ -99,3 +146,11 @@ async function handleSubmit() {
     </div>
   </NForm>
 </template>
+
+<style scoped>
+.register-form-tip {
+  font-size: 12px;
+  line-height: 1.7;
+  color: rgb(var(--base-text-color) / 0.66);
+}
+</style>
