@@ -122,11 +122,9 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            # 杀掉所有遗留的 java、scp、tar 进程，防止干扰新部署
-            kill -9 $(lsof -ti:8081 2>/dev/null) 2>/dev/null || true
-            pkill -9 -f 'scp -t' 2>/dev/null || true
-            pkill -9 -f 'tar xzf' 2>/dev/null || true
-            sleep 2
+            # 杀掉旧后端进程（仅限 8081 端口，不影响 SSH）
+            for pid in $(lsof -ti:8081 2>/dev/null); do kill -9 $pid 2>/dev/null || true; done
+            sleep 1
             echo "cleanup done"
 
       - name: Deploy Backend
