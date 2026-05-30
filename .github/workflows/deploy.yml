@@ -155,10 +155,9 @@ jobs:
             sed -i "s|^SPRING_PROFILES_ACTIVE=.*|SPRING_PROFILES_ACTIVE=prod|" .env
             sed -i "s|^ADMIN_BOOTSTRAP_ENABLED=.*|ADMIN_BOOTSTRAP_ENABLED=true|" .env
 
-            # 4. 安装 Java 21
-            apt-get install -y -qq openjdk-21-jre-headless 2>/dev/null || true
-            export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
-            test -d "$JAVA_HOME" || JAVA_HOME=/usr/lib/jvm/java-1.21.0-openjdk-amd64
+            # 4. 安装 Java 17（Debian 12 自带）
+            apt-get install -y -qq openjdk-17-jre-headless 2>/dev/null || true
+            export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 
             # 5. 启动后端
             chmod +x launch.sh
