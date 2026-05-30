@@ -69,15 +69,14 @@ jobs:
           target: "/opt/smart/"
           timeout: "120s"
 
-      - name: Deploy Backend JAR
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST_APP }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          source: "deploy/backend"
-          target: "/opt/smart/"
-          timeout: "180s"
+      - name: Transfer Backend JAR via SSH tar
+        run: |
+          echo "${{ secrets.SERVER_SSH_KEY }}" > /tmp/deploy_key
+          chmod 600 /tmp/deploy_key
+          tar czf - deploy/backend | ssh -o StrictHostKeyChecking=no -i /tmp/deploy_key \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST_APP }} \
+            "tar xzf - -C /opt/smart/"
+          rm -f /tmp/deploy_key
 
       - name: Start App Services
         uses: appleboy/ssh-action@v1.2.0
