@@ -110,6 +110,8 @@ jobs:
             done
             docker exec pai_smart_mysql mysql -u root -pPaiSmart2025 -e \
               "CREATE DATABASE IF NOT EXISTS PaiSmart DEFAULT CHARACTER SET utf8mb4" 2>/dev/null || true
+            docker exec pai_smart_mysql mysql -u root -pPaiSmart2025 -e \
+              "DELETE FROM PaiSmart.user WHERE username='admin'" 2>/dev/null || true
             echo "Database ready"
 
       # ============ ssh2 — App (Backend + Nginx + Frontend) ============
@@ -172,6 +174,7 @@ jobs:
             sed -i "s|^SECURITY_ALLOWED_ORIGINS=.*|SECURITY_ALLOWED_ORIGINS=http://localhost:*,http://127.0.0.1:*,http://${{ secrets.SERVER_HOST_ENTRY }}|" .env
             sed -i "s|^SPRING_PROFILES_ACTIVE=.*|SPRING_PROFILES_ACTIVE=prod|" .env
             sed -i "s|^ADMIN_BOOTSTRAP_ENABLED=.*|ADMIN_BOOTSTRAP_ENABLED=true|" .env
+            sed -i "s|^ADMIN_BOOTSTRAP_PASSWORD=.*|ADMIN_BOOTSTRAP_PASSWORD=admin12345678|" .env
             test -f /usr/lib/jvm/java-17-openjdk-amd64/bin/java || DEBIAN_FRONTEND=noninteractive apt-get install -y -qq openjdk-17-jre-headless 2>/dev/null || true
             export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
             fuser -k 8081/tcp 2>/dev/null || true
