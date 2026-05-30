@@ -110,8 +110,6 @@ jobs:
             done
             docker exec pai_smart_mysql mysql -u root -pPaiSmart2025 -e \
               "CREATE DATABASE IF NOT EXISTS PaiSmart DEFAULT CHARACTER SET utf8mb4" 2>/dev/null || true
-            docker exec pai_smart_mysql mysql -u root -pPaiSmart2025 -e \
-              "SET FOREIGN_KEY_CHECKS=0; DELETE FROM PaiSmart.users WHERE username='admin'; SET FOREIGN_KEY_CHECKS=1;" 2>/dev/null || true
             echo "Database ready"
 
       # ============ ssh2 — App (Backend + Nginx + Frontend) ============
@@ -211,7 +209,6 @@ jobs:
             sed -i "s|^ADMIN_BOOTSTRAP_PASSWORD=.*|ADMIN_BOOTSTRAP_PASSWORD=admin12345678|" .env
             test -f /usr/lib/jvm/java-17-openjdk-amd64/bin/java || DEBIAN_FRONTEND=noninteractive apt-get install -y -qq openjdk-17-jre-headless 2>/dev/null || true
             export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-            # 确保旧进程完全杀掉（先 TERM 优雅停，再 KILL 强制杀）
             for pid in $(lsof -ti:8081 2>/dev/null); do kill -15 $pid 2>/dev/null || true; done
             sleep 3
             for pid in $(lsof -ti:8081 2>/dev/null); do kill -9 $pid 2>/dev/null || true; done
@@ -222,3 +219,20 @@ jobs:
               export "$line" 2>/dev/null || true
             done < .env
             nohup $JAVA_HOME/bin/java -server -Xms256m -Xmx256m -jar app.jar > /opt/smart/logs/backend.log 2>&1 &
+
+      - name: Fix OrgTags FK
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST_APP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            for i in $(seq 1 12); do
+              admin_id=$(docker exec pai_smart_mysql mysql -u root -pPaiSmart2025 PaiSmart -se "SELECT id FROM users WHERE username='admin'" 2>/dev/null)
+              if [ -n "$admin_id" ]; then
+                docker exec pai_smart_mysql mysql -u root -pPaiSmart2025 PaiSmart -e "UPDATE organization_tags SET created_by=$admin_id" 2>/dev/null || true
+                echo "OrgTags FK fixed to admin id=$admin_id"
+                break
+              fi
+              sleep 5
+            done
