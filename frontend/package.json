@@ -119,5 +119,8 @@
     "commit-msg": "pnpm sa git-commit-verify",
     "pre-commit": "cd frontend && pnpm typecheck && pnpm lint && git diff --exit-code"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": ["@parcel/watcher", "esbuild", "simple-git-hooks", "vue-demi"]
+  },
   "website": "https://github.com/itwanger/PaiSmart.git"
 }
