@@ -49,7 +49,8 @@ public class SecurityConfig {
                             .requestMatchers("/chat/**", "/ws/**").permitAll()
                             // 允许登录注册接口
                             .requestMatchers("/api/v1/users/register", "/api/v1/users/login").permitAll()
-                            // 允许测试接口
+                            // 允许前端路由和测试接口
+                            .requestMatchers("/api/v1/route/**").permitAll()
                             .requestMatchers("/api/v1/test/**").permitAll()
                             // 文件上传和下载相关接口 - 普通用户和管理员都可访问
                             .requestMatchers(
