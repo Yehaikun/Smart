@@ -111,7 +111,7 @@ jobs:
             docker exec pai_smart_mysql mysql -u root -pPaiSmart2025 -e \
               "CREATE DATABASE IF NOT EXISTS PaiSmart DEFAULT CHARACTER SET utf8mb4" 2>/dev/null || true
             docker exec pai_smart_mysql mysql -u root -pPaiSmart2025 -e \
-              "DELETE FROM PaiSmart.user WHERE username='admin'" 2>/dev/null || true
+              "SET FOREIGN_KEY_CHECKS=0; DELETE FROM PaiSmart.users WHERE username='admin'; SET FOREIGN_KEY_CHECKS=1;" 2>/dev/null || true
             echo "Database ready"
 
       # ============ ssh2 — App (Backend + Nginx + Frontend) ============
