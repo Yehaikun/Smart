@@ -33,7 +33,7 @@ jobs:
         run: |
           cd frontend
           npm install -g pnpm
-          pnpm install --no-frozen-lockfile --ignore-scripts
+          pnpm install --no-frozen-lockfile --shamefully-hoist
           pnpm build
           mkdir -p ../deploy/frontend/dist
           cp -r dist/* ../deploy/frontend/dist/
