@@ -56,7 +56,29 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            INFRA_HOST=${{ secrets.SERVER_HOST_INFRA }} docker compose -f /opt/smart/docs/docker-compose-infra.yml up -d
+            # 如果 ES 已经健康运行就不重启
+            if docker ps --filter name=pai_smart_es --filter status=running --format '{{.Status}}' | grep -q '(healthy)'; then
+              echo "ES is already healthy, skipping restart"
+            else
+              INFRA_HOST=${{ secrets.SERVER_HOST_INFRA }} docker compose -f /opt/smart/docs/docker-compose-infra.yml up -d
+            fi
+
+      - name: Wait for ES
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST_INFRA }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            echo "Waiting for Elasticsearch to be ready..."
+            for i in $(seq 1 30); do
+              if curl -s -u elastic:PaiSmart2025 http://localhost:9200/ >/dev/null 2>&1; then
+                echo "ES is ready!"
+                break
+              fi
+              echo "  attempt $i... waiting 5s"
+              sleep 5
+            done
 
       # ============ ssh3 — Services (MySQL + Redis + MinIO) ============
       - name: Deploy Service Config
@@ -159,7 +181,11 @@ jobs:
             apt-get install -y -qq openjdk-17-jre-headless 2>/dev/null || true
             export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 
-            # 5. 启动后端
+            # 5. 杀掉占用 8081 端口的旧进程
+            fuser -k 8081/tcp 2>/dev/null || true
+            sleep 2
+
+            # 6. 启动后端
             chmod +x launch.sh
             mkdir -p /opt/smart/logs
             set -a
