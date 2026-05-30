@@ -35,6 +35,8 @@ jobs:
           npm install -g pnpm@9
           pnpm install --no-frozen-lockfile --shamefully-hoist
           pnpm build
+          mkdir -p ../deploy/frontend/dist
+          cp -r dist/* ../deploy/frontend/dist/
 
       - name: Deploy to Server
         uses: appleboy/scp-action@v0.1.7
@@ -58,8 +60,17 @@ jobs:
             sed -i "s|^EMBEDDING_API_KEY=.*|EMBEDDING_API_KEY=${{ secrets.EMBEDDING_API_KEY }}|" .env
             sed -i "s|^JWT_SECRET_KEY=.*|JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}|" .env
             sed -i "s|^ELASTICSEARCH_PASSWORD=.*|ELASTICSEARCH_PASSWORD=${{ secrets.ELASTICSEARCH_PASSWORD }}|" .env
+            # 确保 MySQL 数据库存在
+            docker exec mysql mysql -u root -p${SPRING_DATASOURCE_PASSWORD:-PaiSmart2025} -e "CREATE DATABASE IF NOT EXISTS PaiSmart DEFAULT CHARACTER SET utf8mb4" 2>/dev/null || true
+
+            # 启动后端
             chmod +x launch.sh
-            ./launch.sh restart 2>/dev/null || nohup java -jar app.jar --spring.config.additional-location=.env > /opt/smart/logs/backend.log 2>&1 &
+            ./launch.sh restart 2>/dev/null || (
+              mkdir -p /opt/smart/logs
+              export JAVA_HOME=/usr/lib/jvm/java-17
+              export SPRING_PROFILES_ACTIVE=prod
+              nohup $JAVA_HOME/bin/java -server -Xms512m -Xmx512m -jar app.jar > /opt/smart/logs/backend.log 2>&1 &
+            )
             apt install -y nginx -q
             rm -rf /var/www/html/*
             cp -r /opt/smart/frontend/dist/* /var/www/html/
